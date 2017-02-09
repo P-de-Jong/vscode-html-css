@@ -3,7 +3,7 @@
   "displayName": "HTML SCSS Support",
   "description": "SCSS support for HTML documents",
   "version": "0.0.34",
-  "publisher": "ecmel",
+  "publisher": "P-de-Jong",
   "license": "MIT",
   "homepage": "https://github.com/P-de-Jong/vscode-html-scss",
   "bugs": "https://github.com/P-de-Jong/vscode-html-scss/issues",
