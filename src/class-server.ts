@@ -14,7 +14,9 @@ export class ClassServer implements vsc.CompletionItemProvider {
     private dot = vsc.CompletionItemKind.Class;
     private hash = vsc.CompletionItemKind.Reference;
     private glob = '**/*.scss';
-
+    private options: any;
+    private globalStyleSheets: { [index: string]: Array<string> } = {};
+    private globalImports: { [index: string]: string } = {};
     private regex = [
         /(class|id)=["|']([^"^']*$)/i,
         /(\.|\#)[^\.^\#^\<^\>]*$/i,
@@ -81,34 +83,38 @@ export class ClassServer implements vsc.CompletionItemProvider {
 
     private initialize() {
         if (vsc.workspace.rootPath) {
-            let optionsJson = path.resolve(vsc.workspace.rootPath, 'scss-options.json');
-
-            fs.readFile(optionsJson, 'utf8', (err: any, data: string) => {
-
-                if (err) {
-                    vsc.workspace.findFiles(this.glob, '').then((uris: Array<vsc.Uri>) => {
-                        for (let i = 0; i < uris.length; i++) {
-                            this.parse(uris[i]);
-                        }
-                    });
-                }
-                else {
-                    let optionsJson = JSON.parse(data);
-
-                    if (!optionsJson.options) {
-                        console.log('no options found');
-                        return;
-                    }
-
-                    let options = optionsJson.options;
-                    this.getGlobalStyleSheets(this.context, options);
-
-                    if (options.isAngularProject) {
-                        this.initializeAngularProject(this.context);
-                    }
-                }
-            });
+            this.getOptions();
         }
+    }
+
+    private getOptions() {
+        let optionsJson = path.resolve(vsc.workspace.rootPath, 'scss-options.json');
+
+        fs.readFile(optionsJson, 'utf8', (err: any, data: string) => {
+            if (err) {
+                vsc.workspace.findFiles(this.glob, '').then((uris: Array<vsc.Uri>) => {
+                    for (let i = 0; i < uris.length; i++) {
+                        this.parse(uris[i], true);
+                    }
+                });
+                this.setGlobalWatcher();
+            }
+            else {
+                let optionsJson = JSON.parse(data);
+
+                if (!optionsJson.options) {
+                    console.log('no options found in json');
+                    return;
+                }
+
+                this.options = optionsJson.options;
+                this.getGlobalStyleSheets();
+
+                if (this.options.isAngularProject) {
+                    this.initializeAngularProject(this.context);
+                }
+            }
+        });
     }
 
     private pushSymbols(key: string, symbols: Array<lst.SymbolInformation>, isGlobal: boolean = false): void {
@@ -136,15 +142,49 @@ export class ClassServer implements vsc.CompletionItemProvider {
         }
     }
 
-    private parse(uri: vsc.Uri, isGlobal: boolean = false): void {
+    private parse(uri: vsc.Uri, isGlobal: boolean = false, callback?: (succes: boolean) => void): void {
         fs.readFile(uri.fsPath, 'utf8', (err: any, data: string) => {
             if (err) {
                 delete this.globalMap[uri.fsPath];
-            } else {
-                let doc = lst.TextDocument.create(uri.fsPath, 'scss', 1, data);
-                let symbols = this.cssLanguageService.findDocumentSymbols(doc, this.cssLanguageService.parseStylesheet(doc));
-                this.pushSymbols(uri.fsPath, symbols, isGlobal);
+                if (callback) {
+                    callback(false);
+                }
             }
+            else {
+                let doc = lst.TextDocument.create(uri.fsPath, 'scss', 1, data);
+                let parsedDoc = this.cssLanguageService.parseStylesheet(doc);
+
+                this.findImports(doc, isGlobal);
+
+                let symbols = this.cssLanguageService.findDocumentSymbols(doc, parsedDoc);
+                this.pushSymbols(uri.fsPath, symbols, isGlobal);
+
+                if (callback) {
+                    callback(true);
+                }
+            }
+        });
+    }
+
+    private findImports(doc: lst.TextDocument, isGlobal: boolean) {
+        let imports = doc.getText().match(/@import '([^;]*)';/g);
+        if (!imports) {
+            return;
+        }
+        let currentDir = doc.uri.substring(0, doc.uri.lastIndexOf('\\'));
+        imports.forEach(imp => {
+            let relativePath = imp.match(/'(.*)'/).pop();
+            this.parseImport(currentDir, relativePath, doc.uri, isGlobal);
+
+            let _relativePath: string;
+            if (relativePath.indexOf('/_') === -1) {
+                _relativePath = [relativePath.slice(0, relativePath.lastIndexOf('/') + 1), '_', relativePath.slice(relativePath.lastIndexOf('/') + 1)].join('');
+            }
+
+            if (_relativePath) {
+                this.parseImport(currentDir, _relativePath, doc.uri, isGlobal);
+            }
+
         });
     }
 
@@ -159,50 +199,78 @@ export class ClassServer implements vsc.CompletionItemProvider {
         this.parse(scssUri);
     }
 
-    private getGlobalStyleSheets(context: vsc.ExtensionContext, options: any) {
-        let globalStyleSheetsPaths = new Array<string>();
+    private getGlobalStyleSheets() {
+        if (this.options.globalStyles.length === 0) {
+            return;
+        }
 
-        for (let resource of options.globalStyles) {
-            let uri = vsc.Uri.file(path.resolve(vsc.workspace.rootPath, resource));
-            globalStyleSheetsPaths.push(uri.fsPath);
+        for (let styleSheetPath of this.options.globalStyles) {
+            let uri = vsc.Uri.file(path.resolve(vsc.workspace.rootPath, styleSheetPath));
+            this.globalStyleSheets[uri.fsPath] = [];
             this.parse(uri, true);
         }
 
-        this.setGlobalWatcher(context, this.glob, globalStyleSheetsPaths);
+        this.setGlobalWatcher();
     }
 
-    private setGlobalWatcher(context: vsc.ExtensionContext, glob: string, globalStyleSheetsPaths: Array<string>) {
-        let watcher = vsc.workspace.createFileSystemWatcher(glob);
+    private setGlobalWatcher() {
+        let watcher = vsc.workspace.createFileSystemWatcher(this.glob);
 
         watcher.onDidCreate(uri => {
-            if (globalStyleSheetsPaths.length === 0 || globalStyleSheetsPaths.indexOf(uri.fsPath) !== -1) {
-                this.parse(uri);
+            if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
+                this.parse(uri, true);
             }
         });
         watcher.onDidChange(uri => {
-            if (globalStyleSheetsPaths.length === 0 || globalStyleSheetsPaths.indexOf(uri.fsPath) !== -1) {
-                this.parse(uri);
+            if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
+                this.parse(uri, true);
             }
         });
         watcher.onDidDelete(uri => {
             delete this.globalMap[uri.fsPath];
         });
 
-        context.subscriptions.push(watcher);
+        this.context.subscriptions.push(watcher);
     }
-
+1
     private initializeAngularProject(context: vsc.ExtensionContext) {
         let currentDocument = vsc.window.activeTextEditor.document;
         if (currentDocument.languageId === 'html') {
             this.getLocalClasses(currentDocument.uri);
         }
 
-        let fileChangeListener = vsc.workspace.onDidOpenTextDocument(document => {
-            if (document.fileName.split('.').pop() === 'html') {
+        this.setFileOpenListener();
+    }
+
+    private setFileOpenListener() {
+        let fileOpenListener = vsc.workspace.onDidOpenTextDocument(document => {
+            let fileExtension = document.fileName.split('.').pop();
+            if (fileExtension === 'html') {
                 this.getLocalClasses(document.uri);
             }
         });
 
-        context.subscriptions.push(fileChangeListener);
+        this.context.subscriptions.push(fileOpenListener);
+    }
+
+    private parseImport(currentDir: string, relativePath: string, parent: string, isGlobal: boolean) {
+        let filePath = path.resolve(currentDir, relativePath + '.scss');
+        let uri = vsc.Uri.file(filePath);
+
+        this.parse(uri, isGlobal, succes => {
+            if (succes && isGlobal) {
+                let existingImport = this.globalImports[uri.fsPath];
+                if (!existingImport) {
+                    this.globalImports[uri.fsPath] = parent;
+                }
+                let parentSheetImports = this.globalStyleSheets[parent];
+                if (parentSheetImports) {
+                    parentSheetImports.push(uri.fsPath);
+                }
+                else {
+
+                }
+            }
+        });
     }
 }
