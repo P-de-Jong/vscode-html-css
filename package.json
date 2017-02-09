@@ -1,16 +1,16 @@
 {
-  "name": "vscode-html-css",
-  "displayName": "HTML CSS Support",
-  "description": "CSS support for HTML documents",
-  "version": "0.0.33",
+  "name": "vscode-html-scss",
+  "displayName": "HTML SCSS Support",
+  "description": "SCSS support for HTML documents",
+  "version": "0.0.34",
   "publisher": "ecmel",
   "license": "MIT",
-  "homepage": "https://github.com/ecmel/vscode-html-css",
-  "bugs": "https://github.com/ecmel/vscode-html-css/issues",
+  "homepage": "https://github.com/P-de-Jong/vscode-html-scss",
+  "bugs": "https://github.com/P-de-Jong/vscode-html-scss/issues",
   "icon": "icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ecmel/vscode-html-css.git"
+    "url": "https://github.com/P-de-Jong/vscode-html-scss.git"
   },
   "engines": {
     "vscode": "^1.5.0"
@@ -21,26 +21,14 @@
   ],
   "keywords": [
     "html",
-    "css",
+    "scss",
     "style",
     "class",
     "attribute"
   ],
   "activationEvents": [
-    "onLanguage:html",
-    "onLanguage:laravel-blade",
-    "onLanguage:razor",
-    "onLanguage:vue",
-    "onLanguage:blade"
+    "onLanguage:html"
   ],
-  "contributes": {
-    "jsonValidation": [
-      {
-        "fileMatch": "resource.json",
-        "url": "./schema.json"
-      }
-    ]
-  },
   "main": "./out/src/extension",
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
