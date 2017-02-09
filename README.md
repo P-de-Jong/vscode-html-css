@@ -1,7 +1,7 @@
 # Visual Studio Code SCSS Support for HTML Documents
 
 Missing SCSS support for HTML documents.
-This project is a fork of the HTML CSS Support extension by ecmel but it uses the SCSSLanguageService instead of CSS.
+This project is a fork of the [ HTML CSS Support extension by ecmel](https://github.com/ecmel/vscode-html-css) but it uses the SCSSLanguageService instead of CSS.
 
 ## Features
 
@@ -22,7 +22,7 @@ If a scss-options.json file is found in the root of the workspace, only files li
 Set the "isAngularProject" option to true if you want the extension to look for scss files relative to a opened component html file.
 
 ### Example
-
+```
 {
     "options": {
         "globalStyles": [
@@ -32,7 +32,7 @@ Set the "isAngularProject" option to true if you want the extension to look for 
         "isAngularProject": true
     }
 }
-
+```
 <!--## Installation-->
 
 <!--[Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=ecmel.vscode-html-scss)-->
