@@ -1,3 +1,15 @@
+<a name="0.0.40"></a>
+# [0.0.40](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.40) (2017-02-11)
+
+
+### Features
+
+* **Go to definition** Press f12 to go to definition of a scss class.
+
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/definition.gif)
+
+
+
 <a name="0.0.39"></a>
 # [0.0.39](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.39) (2017-02-11)
 

@@ -22,6 +22,12 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 
 ![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/inline-template.png)
 
+## Supported Languages
+
+Press F12 to go to definition of a scss class.
+
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/definition.gif)
+
 
 ## Workspace settings
 

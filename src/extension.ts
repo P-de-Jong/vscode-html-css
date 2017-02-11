@@ -3,19 +3,21 @@
 // (c) 2016 Ecmel Ercan
 // (c) 2017 Pim de Jong
 
-import * as vsc from 'vscode';
-import { ClassServer } from './server';
-import { ConfigurationManager } from './utils';
+import * as vscode from 'vscode';
+import { ClassProvider, DefinitionProvider } from './providers';
+import { ConfigurationManager, StylesheetManager } from './managers';
 
 
-export function activate(context: vsc.ExtensionContext): void {
+export function activate(context: vscode.ExtensionContext): void {
     let configurationManager = new ConfigurationManager(context);
-    let classServer = new ClassServer(context, configurationManager);
-    context.subscriptions.push(vsc.languages.registerCompletionItemProvider(['html', 'laravel-blade', 'razor', 'vue', 'blade', 'typescript'], classServer));
+    let stylesheetManager = new StylesheetManager();
+
+    let classProvider = new ClassProvider(context, configurationManager, stylesheetManager);
+    context.subscriptions.push(vscode.languages.registerCompletionItemProvider(['html', 'laravel-blade', 'razor', 'vue', 'blade', 'typescript'], classProvider));
+
+    let definitionProvider = new DefinitionProvider(stylesheetManager);
+    context.subscriptions.push(vscode.languages.registerDefinitionProvider(['html', 'laravel-blade', 'razor', 'vue', 'blade', 'typescript'], definitionProvider));
 }
 
 export function deactivate(): void {
 }
-
-
-

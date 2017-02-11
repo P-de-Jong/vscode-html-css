@@ -5,30 +5,29 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { Snippet } from '../models';
-import { IConfiguration } from '../interfaces';
-import { ConfigurationManager } from '../utils';
+import { IConfiguration, IStyleheetMap } from '../interfaces';
+import { ConfigurationManager, StylesheetManager } from '../managers';
 
 
-export class ClassServer implements vscode.CompletionItemProvider {
+export class ClassProvider implements vscode.CompletionItemProvider {
     private cssLanguageService = css.getSCSSLanguageService();
     private globalWatcher: vscode.FileSystemWatcher;
     private fileOpenListener: vscode.Disposable;
-    private globalMap: { [index: string]: Array<vscode.CompletionItem>; } = {};
-    private localMap: { [index: string]: Array<vscode.CompletionItem>; } = {};
     private dot = vscode.CompletionItemKind.Class;
     private hash = vscode.CompletionItemKind.Reference;
     private glob = '**/*.scss';
     private configuration: IConfiguration;
-    private globalStyleSheets: { [index: string]: Array<string> } = {};
-    private globalImports: { [index: string]: string } = {};
     private regex = [
         /(class|\[class\]|\[id\]|id|\[ngClass\])=["|']([^"^']*$)/i,
-        /(\.|\#)[^\.^\#^\<^\>]*$/i,
         /<style[\s\S]*>([\s\S]*)<\/style>/ig
     ];
 
 
-    constructor(private context: vscode.ExtensionContext, private configurationManager: ConfigurationManager) {
+    constructor(
+        private context: vscode.ExtensionContext,
+        private configurationManager: ConfigurationManager,
+        private stylesheetManager: StylesheetManager
+    ) {
         this.initialize();
 
         configurationManager.setConfigChangeListener(() => this.onConfigurationChange());
@@ -41,13 +40,10 @@ export class ClassServer implements vscode.CompletionItemProvider {
         let text = document.getText(range);
 
         let tag = this.regex[0].exec(text);
-        if (!tag) {
-            tag = this.regex[1].exec(text);
-        }
         if (tag) {
             let internal = new Array<lst.SymbolInformation>();
             let style;
-            while (style = this.regex[2].exec(document.getText())) {
+            while (style = this.regex[1].exec(document.getText())) {
                 let snippet = new Snippet(style[1], this.cssLanguageService);
                 let symbols = this.cssLanguageService.findDocumentSymbols(snippet.document, snippet.stylesheet);
                 for (let symbol of symbols) {
@@ -58,14 +54,14 @@ export class ClassServer implements vscode.CompletionItemProvider {
             this.pushSymbols('style', internal);
 
             let items: { [index: string]: vscode.CompletionItem; } = {};
-            for (let key in this.globalMap) {
-                for (let item of this.globalMap[key]) {
+            for (let key in this.stylesheetManager.globalMap) {
+                for (let item of this.stylesheetManager.globalMap[key]) {
                     items[item.label] = item;
                 }
             }
 
-            for (let key in this.localMap) {
-                for (let item of this.localMap[key]) {
+            for (let key in this.stylesheetManager.localMap) {
+                for (let item of this.stylesheetManager.localMap[key]) {
                     items[item.label] = item;
                 }
             }
@@ -94,7 +90,7 @@ export class ClassServer implements vscode.CompletionItemProvider {
                 this.findGlobalFiles();
             }
             else {
-                this.getGlobalStyleSheets();
+                this.getGlobalStylesheets();
             }
 
             if (this.configuration.isAngularProject) {
@@ -106,6 +102,7 @@ export class ClassServer implements vscode.CompletionItemProvider {
     private findGlobalFiles(): void {
         vscode.workspace.findFiles(this.glob, '').then((uris: Array<vscode.Uri>) => {
             for (let i = 0; i < uris.length; i++) {
+                this.stylesheetManager.globalStyleSheets[uris[i].fsPath] = [];
                 this.parse(uris[i], true);
             }
         });
@@ -130,17 +127,17 @@ export class ClassServer implements vscode.CompletionItemProvider {
         }
 
         if (isGlobal) {
-            this.globalMap[key] = ci;
+            this.stylesheetManager.globalMap[key] = ci;
         }
         else {
-            this.localMap[key] = ci;
+            this.stylesheetManager.localMap[key] = ci;
         }
     }
 
     private parse(uri: vscode.Uri, isGlobal: boolean = false, callback?: (succes: boolean) => void): void {
         fs.readFile(uri.fsPath, 'utf8', (err: any, data: string) => {
             if (err) {
-                delete this.globalMap[uri.fsPath];
+                delete this.stylesheetManager.globalMap[uri.fsPath];
                 if (callback) {
                     callback(false);
                 }
@@ -185,7 +182,7 @@ export class ClassServer implements vscode.CompletionItemProvider {
 
     private getLocalClasses(htmlUri: vscode.Uri): void {
         // Clear local map
-        this.localMap = {};
+        this.stylesheetManager.localMap = {};
 
         let filePath = htmlUri.fsPath.replace(/\.[^/.]+$/, '');
         filePath += '.scss';
@@ -194,14 +191,14 @@ export class ClassServer implements vscode.CompletionItemProvider {
         this.parse(scssUri);
     }
 
-    private getGlobalStyleSheets(): void {
+    private getGlobalStylesheets(): void {
         if (this.configuration.globalStyles.length === 0) {
             return;
         }
 
         for (let styleSheetPath of this.configuration.globalStyles) {
             let uri = vscode.Uri.file(path.resolve(vscode.workspace.rootPath, styleSheetPath));
-            this.globalStyleSheets[uri.fsPath] = [];
+            this.stylesheetManager.globalStyleSheets[uri.fsPath] = [];
             this.parse(uri, true);
         }
 
@@ -212,17 +209,17 @@ export class ClassServer implements vscode.CompletionItemProvider {
         this.globalWatcher = vscode.workspace.createFileSystemWatcher(this.glob);
 
         this.globalWatcher.onDidCreate(uri => {
-            if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
+            if (Object.keys(this.stylesheetManager.globalStyleSheets).length === 0 || this.stylesheetManager.globalStyleSheets[uri.fsPath] || this.stylesheetManager.globalImports[uri.fsPath]) {
                 this.parse(uri, true);
             }
         });
         this.globalWatcher.onDidChange(uri => {
-            if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
+            if (Object.keys(this.stylesheetManager.globalStyleSheets).length === 0 || this.stylesheetManager.globalStyleSheets[uri.fsPath] || this.stylesheetManager.globalImports[uri.fsPath]) {
                 this.parse(uri, true);
             }
         });
         this.globalWatcher.onDidDelete(uri => {
-            delete this.globalMap[uri.fsPath];
+            delete this.stylesheetManager.globalMap[uri.fsPath];
         });
 
         this.context.subscriptions.push(this.globalWatcher);
@@ -254,17 +251,17 @@ export class ClassServer implements vscode.CompletionItemProvider {
         let filePath = path.resolve(currentDir, relativePath + '.scss');
         let uri = vscode.Uri.file(filePath);
 
-        if (this.globalImports[uri.fsPath]) {
+        if (this.stylesheetManager.globalImports[uri.fsPath]) {
             return;
         }
 
         this.parse(uri, isGlobal, succes => {
             if (succes && isGlobal) {
-                let existingImport = this.globalImports[uri.fsPath];
+                let existingImport = this.stylesheetManager.globalImports[uri.fsPath];
                 if (!existingImport) {
-                    this.globalImports[uri.fsPath] = parent;
+                    this.stylesheetManager.globalImports[uri.fsPath] = parent;
                 }
-                let parentSheetImports = this.globalStyleSheets[parent];
+                let parentSheetImports = this.stylesheetManager.globalStyleSheets[parent];
                 if (parentSheetImports) {
                     parentSheetImports.push(uri.fsPath);
                 }
@@ -276,10 +273,10 @@ export class ClassServer implements vscode.CompletionItemProvider {
     }
 
     private onConfigurationChange(): void {
-        this.globalMap = {};
-        this.localMap = {};
-        this.globalStyleSheets = {};
-        this.globalImports = {};
+        this.stylesheetManager.globalMap = {};
+        this.stylesheetManager.localMap = {};
+        this.stylesheetManager.globalStyleSheets = {};
+        this.stylesheetManager.globalImports = {};
 
         if (this.globalWatcher) {
             this.globalWatcher.dispose();

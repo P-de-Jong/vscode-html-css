@@ -23,7 +23,6 @@ export class ConfigurationManager {
         return this.configuration;
     }
 
-
     public setConfigChangeListener(callback: () => void): void {
         let onConfigChange = vscode.workspace.onDidChangeConfiguration(() => {
             this.configuration = <IConfiguration>vscode.workspace.getConfiguration('htmlScss');
