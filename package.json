@@ -2,7 +2,7 @@
   "name": "vscode-html-scss",
   "displayName": "HTML SCSS Support",
   "description": "SCSS support for HTML documents",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "publisher": "P-de-Jong",
   "license": "MIT",
   "homepage": "https://github.com/P-de-Jong/vscode-html-scss",
@@ -30,6 +30,24 @@
     "onLanguage:html"
   ],
   "main": "./out/src/extension",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "HTML SCSS support configuration",
+      "properties": {
+        "htmlScss.isAngularProject": {
+          "type": "boolean",
+          "default": true,
+          "description": "When set to true, the extension looks for .scss file relative to the currently opened html file with the same name."
+        },
+        "htmlScss.globalStyles": {
+          "type": "array",
+          "default": null,
+          "description": "Set paths to .scss files. Imports are automatically handled. When no paths are set, all .scss files in the workspace will be included."
+        }
+      }
+    }
+  },
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
     "compile": "tsc -watch -p ./",
@@ -40,7 +58,8 @@
     "vscode": "^1.0.0",
     "mocha": "^2.3.3",
     "@types/node": "^6.0.40",
-    "@types/mocha": "^2.2.32"
+    "@types/mocha": "^2.2.32",
+    "tslint": "^4.4.2"
   },
   "dependencies": {
     "vscode-languageserver-types": "1.0.4",

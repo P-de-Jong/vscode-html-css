@@ -11,29 +11,21 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 - Scans workspace folder for scss files.
 - Supports optional scss-options.json file for fine tuned resource selection.
 - Supports Angular projects by looking for component scss files relative to the opened component html file. 
-- Uses [vscode-css-languageservice](https://github.com/Microsoft/vscode-scss-languageservice).
+- Uses [vscode-css-languageservice](https://github.com/Microsoft/vscode-css-languageservice).
 
 ## Supported Languages
 
 - html
 
-## Optional scss-options.json
+## Workspace settings
 
-If a scss-options.json file is found in the root of the workspace, only files listed in the file will be used for class and id attribute completion.
-Set the "isAngularProject" option to true if you want the extension to look for scss files relative to a opened component html file.
+Extension settings can be set in the workspace settings.
+- **htmlScss.globalStyles:** Array of filepaths. When this setting is not present all scss files in the workspaced will be used. When the array is empty, no files will be used.
+- **htmlScss.isAngularProject:** Set to true if you want the extension to look for scss files relative to a opened component html file.
 
 ### Example
-```
-{
-    "options": {
-        "globalStyles": [
-            "./test.scss",
-            "./assets/styles/site.scss"
-        ],
-        "isAngularProject": true
-    }
-}
-```
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/settings.png)
+
 <!--## Installation-->
 
 <!--[Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=ecmel.vscode-html-scss)-->

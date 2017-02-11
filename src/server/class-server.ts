@@ -1,20 +1,24 @@
-import * as vsc from 'vscode';
+import * as vscode from 'vscode';
 import * as lst from 'vscode-languageserver-types';
 import * as css from 'vscode-css-languageservice';
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
 
-import { Snippet } from './snippet';
+import { Snippet } from '../models';
+import { IConfiguration } from '../interfaces';
+import { ConfigurationManager } from '../utils';
 
 
-export class ClassServer implements vsc.CompletionItemProvider {
+export class ClassServer implements vscode.CompletionItemProvider {
     private cssLanguageService = css.getSCSSLanguageService();
-    private globalMap: { [index: string]: Array<vsc.CompletionItem>; } = {};
-    private localMap: { [index: string]: Array<vsc.CompletionItem>; } = {};
-    private dot = vsc.CompletionItemKind.Class;
-    private hash = vsc.CompletionItemKind.Reference;
+    private globalWatcher: vscode.FileSystemWatcher;
+    private fileOpenListener: vscode.Disposable;
+    private globalMap: { [index: string]: Array<vscode.CompletionItem>; } = {};
+    private localMap: { [index: string]: Array<vscode.CompletionItem>; } = {};
+    private dot = vscode.CompletionItemKind.Class;
+    private hash = vscode.CompletionItemKind.Reference;
     private glob = '**/*.scss';
-    private options: any;
+    private configuration: IConfiguration;
     private globalStyleSheets: { [index: string]: Array<string> } = {};
     private globalImports: { [index: string]: string } = {};
     private regex = [
@@ -24,14 +28,16 @@ export class ClassServer implements vsc.CompletionItemProvider {
     ];
 
 
-    constructor(private context: vsc.ExtensionContext) {
+    constructor(private context: vscode.ExtensionContext, private configurationManager: ConfigurationManager) {
         this.initialize();
+
+        configurationManager.setConfigChangeListener(() => this.onConfigurationChange());
     }
 
 
-    public provideCompletionItems(document: vsc.TextDocument, position: vsc.Position, token: vsc.CancellationToken): vsc.CompletionList {
-        let start = new vsc.Position(0, 0);
-        let range = new vsc.Range(start, position);
+    public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.CompletionList {
+        let start = new vscode.Position(0, 0);
+        let range = new vscode.Range(start, position);
         let text = document.getText(range);
 
         let tag = this.regex[0].exec(text);
@@ -51,7 +57,7 @@ export class ClassServer implements vsc.CompletionItemProvider {
 
             this.pushSymbols('style', internal);
 
-            let items: { [index: string]: vsc.CompletionItem; } = {};
+            let items: { [index: string]: vscode.CompletionItem; } = {};
             for (let key in this.globalMap) {
                 for (let item of this.globalMap[key]) {
                     items[item.label] = item;
@@ -65,61 +71,50 @@ export class ClassServer implements vsc.CompletionItemProvider {
             }
 
             let id = tag[0].startsWith('id') || tag[0].startsWith('#');
-            let ci = new Array<vsc.CompletionItem>();
+            let ci = new Array<vscode.CompletionItem>();
             for (let item in items) {
                 if ((id && items[item].kind === this.hash) || !id && items[item].kind === this.dot) {
                     ci.push(items[item]);
                 }
             }
-            return new vsc.CompletionList(ci);
+            return new vscode.CompletionList(ci);
         }
         return null;
     }
 
-    public resolveCompletionItem(item: vsc.CompletionItem, token: vsc.CancellationToken): vsc.CompletionItem {
+    public resolveCompletionItem(item: vscode.CompletionItem, token: vscode.CancellationToken): vscode.CompletionItem {
         return null;
     }
 
 
-    private initialize() {
-        if (vsc.workspace.rootPath) {
-            this.getOptions();
-        }
-    }
-
-    private getOptions() {
-        let optionsJson = path.resolve(vsc.workspace.rootPath, 'scss-options.json');
-
-        fs.readFile(optionsJson, 'utf8', (err: any, data: string) => {
-            if (err) {
-                vsc.workspace.findFiles(this.glob, '').then((uris: Array<vsc.Uri>) => {
-                    for (let i = 0; i < uris.length; i++) {
-                        this.parse(uris[i], true);
-                    }
-                });
-                this.setGlobalWatcher();
+    private initialize(): void {
+        if (vscode.workspace.rootPath) {
+            this.configuration = this.configurationManager.getConfiguration();
+            if (!this.configuration.globalStyles) {
+                this.findGlobalFiles();
             }
             else {
-                let optionsJson = JSON.parse(data);
-
-                if (!optionsJson.options) {
-                    console.log('no options found in json');
-                    return;
-                }
-
-                this.options = optionsJson.options;
                 this.getGlobalStyleSheets();
+            }
 
-                if (this.options.isAngularProject) {
-                    this.initializeAngularProject(this.context);
-                }
+            if (this.configuration.isAngularProject) {
+                this.initializeAngularProject();
+            }
+        }
+    }
+
+    private findGlobalFiles(): void {
+        vscode.workspace.findFiles(this.glob, '').then((uris: Array<vscode.Uri>) => {
+            for (let i = 0; i < uris.length; i++) {
+                this.parse(uris[i], true);
             }
         });
+        this.setGlobalWatcher();
     }
 
     private pushSymbols(key: string, symbols: Array<lst.SymbolInformation>, isGlobal: boolean = false): void {
         let regex = /[\.\#]([\w-]+)/g;
-        let ci: Array<vsc.CompletionItem> = new Array<vsc.CompletionItem>();
+        let ci: Array<vscode.CompletionItem> = new Array<vscode.CompletionItem>();
 
         for (let i = 0; i < symbols.length; i++) {
             if (symbols[i].kind !== 5) {
@@ -127,7 +122,7 @@ export class ClassServer implements vsc.CompletionItemProvider {
             }
             let symbol;
             while (symbol = regex.exec(symbols[i].name)) {
-                let item = new vsc.CompletionItem(symbol[1]);
+                let item = new vscode.CompletionItem(symbol[1]);
                 item.kind = symbol[0].startsWith('.') ? this.dot : this.hash;
                 item.detail = path.basename(key);
                 ci.push(item);
@@ -142,7 +137,7 @@ export class ClassServer implements vsc.CompletionItemProvider {
         }
     }
 
-    private parse(uri: vsc.Uri, isGlobal: boolean = false, callback?: (succes: boolean) => void): void {
+    private parse(uri: vscode.Uri, isGlobal: boolean = false, callback?: (succes: boolean) => void): void {
         fs.readFile(uri.fsPath, 'utf8', (err: any, data: string) => {
             if (err) {
                 delete this.globalMap[uri.fsPath];
@@ -166,7 +161,7 @@ export class ClassServer implements vsc.CompletionItemProvider {
         });
     }
 
-    private findImports(doc: lst.TextDocument, isGlobal: boolean) {
+    private findImports(doc: lst.TextDocument, isGlobal: boolean): void {
         let imports = doc.getText().match(/@import '([^;]*)';/g);
         if (!imports) {
             return;
@@ -188,24 +183,24 @@ export class ClassServer implements vsc.CompletionItemProvider {
         });
     }
 
-    private getLocalClasses(htmlUri: vsc.Uri) {
+    private getLocalClasses(htmlUri: vscode.Uri): void {
         // Clear local map
         this.localMap = {};
 
         let filePath = htmlUri.fsPath.replace(/\.[^/.]+$/, '');
         filePath += '.scss';
 
-        let scssUri = vsc.Uri.file(filePath);
+        let scssUri = vscode.Uri.file(filePath);
         this.parse(scssUri);
     }
 
-    private getGlobalStyleSheets() {
-        if (this.options.globalStyles.length === 0) {
+    private getGlobalStyleSheets(): void {
+        if (this.configuration.globalStyles.length === 0) {
             return;
         }
 
-        for (let styleSheetPath of this.options.globalStyles) {
-            let uri = vsc.Uri.file(path.resolve(vsc.workspace.rootPath, styleSheetPath));
+        for (let styleSheetPath of this.configuration.globalStyles) {
+            let uri = vscode.Uri.file(path.resolve(vscode.workspace.rootPath, styleSheetPath));
             this.globalStyleSheets[uri.fsPath] = [];
             this.parse(uri, true);
         }
@@ -213,28 +208,28 @@ export class ClassServer implements vsc.CompletionItemProvider {
         this.setGlobalWatcher();
     }
 
-    private setGlobalWatcher() {
-        let watcher = vsc.workspace.createFileSystemWatcher(this.glob);
+    private setGlobalWatcher(): void {
+        this.globalWatcher = vscode.workspace.createFileSystemWatcher(this.glob);
 
-        watcher.onDidCreate(uri => {
+        this.globalWatcher.onDidCreate(uri => {
             if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
                 this.parse(uri, true);
             }
         });
-        watcher.onDidChange(uri => {
+        this.globalWatcher.onDidChange(uri => {
             if (Object.keys(this.globalStyleSheets).length === 0 || this.globalStyleSheets[uri.fsPath] || this.globalImports[uri.fsPath]) {
                 this.parse(uri, true);
             }
         });
-        watcher.onDidDelete(uri => {
+        this.globalWatcher.onDidDelete(uri => {
             delete this.globalMap[uri.fsPath];
         });
 
-        this.context.subscriptions.push(watcher);
+        this.context.subscriptions.push(this.globalWatcher);
     }
-1
-    private initializeAngularProject(context: vsc.ExtensionContext) {
-        let currentDocument = vsc.window.activeTextEditor.document;
+
+    private initializeAngularProject(): void {
+        let currentDocument = vscode.window.activeTextEditor.document;
         if (currentDocument.languageId === 'html') {
             this.getLocalClasses(currentDocument.uri);
         }
@@ -242,20 +237,24 @@ export class ClassServer implements vsc.CompletionItemProvider {
         this.setFileOpenListener();
     }
 
-    private setFileOpenListener() {
-        let fileOpenListener = vsc.workspace.onDidOpenTextDocument(document => {
+    private setFileOpenListener(): void {
+        this.fileOpenListener = vscode.workspace.onDidOpenTextDocument(document => {
             let fileExtension = document.fileName.split('.').pop();
             if (fileExtension === 'html') {
                 this.getLocalClasses(document.uri);
             }
         });
 
-        this.context.subscriptions.push(fileOpenListener);
+        this.context.subscriptions.push(this.fileOpenListener);
     }
 
-    private parseImport(currentDir: string, relativePath: string, parent: string, isGlobal: boolean) {
+    private parseImport(currentDir: string, relativePath: string, parent: string, isGlobal: boolean): void {
         let filePath = path.resolve(currentDir, relativePath + '.scss');
-        let uri = vsc.Uri.file(filePath);
+        let uri = vscode.Uri.file(filePath);
+
+        if (this.globalImports[uri.fsPath]) {
+            return;
+        }
 
         this.parse(uri, isGlobal, succes => {
             if (succes && isGlobal) {
@@ -272,5 +271,22 @@ export class ClassServer implements vsc.CompletionItemProvider {
                 }
             }
         });
+    }
+
+    private onConfigurationChange(): void {
+        this.globalMap = {};
+        this.localMap = {};
+        this.globalStyleSheets = {};
+        this.globalImports = {};
+
+        if (this.globalWatcher) {
+            this.globalWatcher.dispose();
+        }
+
+        if (this.fileOpenListener) {
+            this.fileOpenListener.dispose();
+        }
+
+        this.initialize();
     }
 }
