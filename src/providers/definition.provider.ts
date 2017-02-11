@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
 import * as lst from 'vscode-languageserver-types';
 import * as css from 'vscode-css-languageservice';
-import * as fs from 'fs';
 
 import { StylesheetManager } from '../managers';
-import { IStyleheetMap } from '../interfaces';
 
 
 export class DefinitionProvider implements vscode.DefinitionProvider {
@@ -20,9 +18,9 @@ export class DefinitionProvider implements vscode.DefinitionProvider {
             let currentRange = document.getWordRangeAtPosition(position);
             let property = document.getText(currentRange);
 
-            let styleSheetPath: string = this.findInMap(this.stylesheetManager.localMap, property);
+            let styleSheetPath: string = this.stylesheetManager.findInMap(this.stylesheetManager.localMap, property);
             if (!styleSheetPath) {
-                styleSheetPath = this.findInMap(this.stylesheetManager.globalMap, property);
+                styleSheetPath = this.stylesheetManager.findInMap(this.stylesheetManager.globalMap, property);
             }
 
             if (!styleSheetPath) {
@@ -38,8 +36,8 @@ export class DefinitionProvider implements vscode.DefinitionProvider {
                 for (let i = 0; i < symbols.length; i++) {
                     let symbol = symbols[i];
 
+                    let shouldResolve: boolean;
                     if (symbol.name.charAt(0) === '.' || symbol.name.charAt(0) === '#') {
-                        let shouldResolve: boolean;
                         if (symbol.name.substring(1) === property) {
                             shouldResolve = true;
                         }
@@ -52,6 +50,15 @@ export class DefinitionProvider implements vscode.DefinitionProvider {
                                 }
                             }
                         }
+                    }
+                    else {
+                        let splitPoint = symbol.name.split('.');
+                        shouldResolve = this.stylesheetManager.compareSplit(splitPoint, property);
+
+                        if (!shouldResolve) {
+                            let splitHash = symbol.name.split('#');
+                            shouldResolve = this.stylesheetManager.compareSplit(splitHash, property);
+                        }
 
                         if (shouldResolve) {
                             let position = new vscode.Position(symbol.location.range.start.line, symbol.location.range.start.character);
@@ -60,57 +67,16 @@ export class DefinitionProvider implements vscode.DefinitionProvider {
                             break;
                         }
                     }
-                    else {
-                        let shouldResolve: boolean;
-                        let splitPoint = symbol.name.split('.');
-                        for (let i = 0; i < splitPoint.length; i++) {
-                            if (splitPoint[i] === property) {
-                                shouldResolve = true;
-                                break;
-                            }
-                        }
 
-                        if (!shouldResolve) {
-                            let splitHash = symbol.name.split('#');
-                            for (let i = 0; i < splitHash.length; i++) {
-                                if (splitHash[i] === property) {
-                                    shouldResolve = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (shouldResolve) {
-                            let position = new vscode.Position(symbol.location.range.start.line, symbol.location.range.start.character);
-                            let location = new vscode.Location(uri, position);
-                            resolve(location);
-                            break;
-                        }
+                    if (shouldResolve) {
+                        let position = new vscode.Position(symbol.location.range.start.line, symbol.location.range.start.character);
+                        let location = new vscode.Location(uri, position);
+                        resolve(location);
+                        break;
                     }
                 }
                 resolve();
             });
         });
-    }
-
-
-    private findInMap(map: IStyleheetMap, property: string): string {
-        let styleSheetPath: string;
-        for (let key in map) {
-            let found: boolean;
-            for (let item of map[key]) {
-                if (item.label === property) {
-                    styleSheetPath = key;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (found) {
-                break;
-            }
-        }
-
-        return styleSheetPath;
     }
 }

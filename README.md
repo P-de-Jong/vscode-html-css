@@ -9,7 +9,8 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 - Id attribute completion.
 - Supports @import.
 - Scans workspace folder for scss files.
-- Supports Angular projects by looking for component scss files relative to the opened component html file. 
+- Supports Angular projects by looking for component scss files relative to the opened component html file.
+- Press F12 to go to definition. 
 - Uses [vscode-css-languageservice](https://github.com/Microsoft/vscode-css-languageservice).
 
 ## Supported Languages

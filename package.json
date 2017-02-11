@@ -2,7 +2,7 @@
   "name": "vscode-html-scss",
   "displayName": "HTML SCSS Support",
   "description": "SCSS support for HTML documents",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "publisher": "P-de-Jong",
   "license": "MIT",
   "homepage": "https://github.com/P-de-Jong/vscode-html-scss",
