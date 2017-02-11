@@ -1,3 +1,15 @@
+<a name="0.0.39"></a>
+# [0.0.39](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.39) (2017-02-11)
+
+
+### Features
+
+* **Language support** Added typescript inline templates, laravel-blade, razor and vue support. This includes Angular Components inline templates.
+
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/inline-template.png)
+
+
+
 <a name="0.0.37"></a>
 # [0.0.37](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.37) (2017-02-10)
 

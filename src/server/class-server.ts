@@ -229,9 +229,9 @@ export class ClassServer implements vscode.CompletionItemProvider {
     }
 
     private initializeAngularProject(): void {
-       if (vscode.window.activeTextEditor) {
+        if (vscode.window.activeTextEditor) {
             let currentDocument = vscode.window.activeTextEditor.document;
-            if (currentDocument.languageId === 'html') {
+            if (currentDocument.languageId === 'html' || 'typescript') {
                 this.getLocalClasses(currentDocument.uri);
             }
         }
@@ -242,7 +242,7 @@ export class ClassServer implements vscode.CompletionItemProvider {
     private setFileOpenListener(): void {
         this.fileOpenListener = vscode.workspace.onDidOpenTextDocument(document => {
             let fileExtension = document.fileName.split('.').pop();
-            if (fileExtension === 'html') {
+            if (fileExtension === 'html' || fileExtension === 'ts') {
                 this.getLocalClasses(document.uri);
             }
         });

@@ -15,11 +15,18 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 ## Supported Languages
 
 - html
+- typescript inline template (e.g. Angular Components)
+- laravel-blade
+- razor
+- vue
+
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/inline-template.png)
+
 
 ## Workspace settings
 
 Extension settings can be set in the workspace settings.
-- **htmlScss.globalStyles:** Array of filepaths. When this setting is not present all scss files in the workspaced will be used. When the array is empty, no files will be used.
+- **htmlScss.globalStyles:** Array of filepaths. When this setting is not present all scss files in the workspace will be used. When the array is empty, no files will be used.
 - **htmlScss.isAngularProject:** Set to true if you want the extension to look for scss files relative to a opened component html file.
 
 ### Example
