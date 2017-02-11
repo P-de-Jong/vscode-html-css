@@ -11,7 +11,7 @@ import { ConfigurationManager } from './utils';
 export function activate(context: vsc.ExtensionContext): void {
     let configurationManager = new ConfigurationManager(context);
     let classServer = new ClassServer(context, configurationManager);
-    context.subscriptions.push(vsc.languages.registerCompletionItemProvider('html', classServer));
+    context.subscriptions.push(vsc.languages.registerCompletionItemProvider(['html', 'laravel-blade', 'razor', 'vue', 'blade', 'typescript'], classServer));
 }
 
 export function deactivate(): void {

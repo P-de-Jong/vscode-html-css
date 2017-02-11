@@ -22,7 +22,7 @@ export class ClassServer implements vscode.CompletionItemProvider {
     private globalStyleSheets: { [index: string]: Array<string> } = {};
     private globalImports: { [index: string]: string } = {};
     private regex = [
-        /(class|id)=["|']([^"^']*$)/i,
+        /(class|\[class\]|\[id\]|id|\[ngClass\])=["|']([^"^']*$)/i,
         /(\.|\#)[^\.^\#^\<^\>]*$/i,
         /<style[\s\S]*>([\s\S]*)<\/style>/ig
     ];
@@ -229,9 +229,11 @@ export class ClassServer implements vscode.CompletionItemProvider {
     }
 
     private initializeAngularProject(): void {
-        let currentDocument = vscode.window.activeTextEditor.document;
-        if (currentDocument.languageId === 'html') {
-            this.getLocalClasses(currentDocument.uri);
+       if (vscode.window.activeTextEditor) {
+            let currentDocument = vscode.window.activeTextEditor.document;
+            if (currentDocument.languageId === 'html') {
+                this.getLocalClasses(currentDocument.uri);
+            }
         }
 
         this.setFileOpenListener();

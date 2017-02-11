@@ -27,7 +27,12 @@
     "attribute"
   ],
   "activationEvents": [
-    "onLanguage:html"
+    "onLanguage:html",
+    "onLanguage:laravel-blade",
+    "onLanguage:razor",
+    "onLanguage:vue",
+    "onLanguage:blade",
+    "onLanguage:typescript"
   ],
   "main": "./out/src/extension",
   "contributes": {
