@@ -10,7 +10,7 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 - Supports @import.
 - Scans workspace folder for scss files.
 - Supports Angular projects by looking for component scss files relative to the opened component html file.
-- Press F12 to go to definition. 
+- Press F12 to go to definition(s). 
 - Uses [vscode-css-languageservice](https://github.com/Microsoft/vscode-css-languageservice).
 
 ## Supported Languages
@@ -23,9 +23,9 @@ This project is a fork of the [ HTML CSS Support extension by ecmel](https://git
 
 ![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/inline-template.png)
 
-## Go To Definition
+## Go To Definition(s)
 
-Press F12 to go to definition of a scss class.
+Press F12 to go to definition(s) of a scss class.
 
 ![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/definition.gif)
 

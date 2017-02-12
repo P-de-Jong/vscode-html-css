@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { Snippet } from '../models';
-import { IConfiguration, IStyleheetMap } from '../interfaces';
+import { IConfiguration } from '../interfaces';
 import { ConfigurationManager, StylesheetManager } from '../managers';
 
 

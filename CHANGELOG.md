@@ -1,3 +1,15 @@
+<a name="0.0.42"></a>
+# [0.0.42](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.42) (2017-02-12)
+
+
+### Features
+
+* **Go to definition/find all definitions** Pressing f12 now finds all definitions of the class/id.
+
+![example](https://raw.githubusercontent.com/P-de-Jong/vscode-html-scss/master/images/definition.gif)
+
+
+
 <a name="0.0.40"></a>
 # [0.0.40](https://github.com/P-de-Jong/vscode-html-scss/releases/tag/0.0.40) (2017-02-11)
 
